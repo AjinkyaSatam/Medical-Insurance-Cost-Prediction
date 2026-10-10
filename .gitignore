@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing and virtual environments
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

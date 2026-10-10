@@ -1,0 +1,239 @@
+{
+  "final_model": "Tuned Gradient Boosting Regressor",
+  "best_params": {
+    "regressor__subsample": "0.9",
+    "regressor__n_estimators": "100",
+    "regressor__min_samples_split": "10",
+    "regressor__min_samples_leaf": "2",
+    "regressor__max_depth": "2",
+    "regressor__learning_rate": "0.08"
+  },
+  "final_metrics": {
+    "train_r2": 0.8687,
+    "test_r2": 0.9188,
+    "train_mae": 2481.26,
+    "test_mae": 2123.89,
+    "train_rmse": 4395.06,
+    "test_rmse": 3421.9,
+    "cv_r2_mean": 0.8433,
+    "cv_r2_std": 0.0361,
+    "train_test_r2_gap": -0.0501,
+    "model_name": "Tuned Gradient Boosting Regressor",
+    "best_params": {
+      "regressor__subsample": "0.9",
+      "regressor__n_estimators": "100",
+      "regressor__min_samples_split": "10",
+      "regressor__min_samples_leaf": "2",
+      "regressor__max_depth": "2",
+      "regressor__learning_rate": "0.08"
+    }
+  },
+  "overfitting_diagnosis": "Excellent generalization. The train/test gap is small, confirming shallow tree constraints successfully prevented overfitting on this 1,338-row dataset.",
+  "comparison_table": {
+    "Linear Regression (Baseline)": {
+      "train_r2": 0.8366,
+      "test_r2": 0.8983,
+      "train_mae": 2968.04,
+      "test_mae": 2474.76,
+      "train_rmse": 4903.66,
+      "test_rmse": 3829.44,
+      "cv_r2_mean": 0.8259,
+      "cv_r2_std": 0.0392,
+      "train_test_r2_gap": -0.0617,
+      "target_transform": "raw"
+    },
+    "Random Forest": {
+      "train_r2": 0.9735,
+      "test_r2": 0.8908,
+      "train_mae": 1084.92,
+      "test_mae": 2433.4,
+      "train_rmse": 1973.28,
+      "test_rmse": 3967.05,
+      "cv_r2_mean": 0.8197,
+      "cv_r2_std": 0.0541,
+      "train_test_r2_gap": 0.0827,
+      "target_transform": "raw"
+    },
+    "Gradient Boosting": {
+      "train_r2": 0.8954,
+      "test_r2": 0.9156,
+      "train_mae": 2196.67,
+      "test_mae": 2128.55,
+      "train_rmse": 3922.21,
+      "test_rmse": 3487.49,
+      "cv_r2_mean": 0.8351,
+      "cv_r2_std": 0.0401,
+      "train_test_r2_gap": -0.0202,
+      "target_transform": "raw"
+    },
+    "XGBoost": {
+      "train_r2": 0.9938,
+      "test_r2": 0.8509,
+      "train_mae": 514.82,
+      "test_mae": 2756.41,
+      "train_rmse": 958.75,
+      "test_rmse": 4636.55,
+      "cv_r2_mean": 0.7859,
+      "cv_r2_std": 0.0673,
+      "train_test_r2_gap": 0.1429,
+      "target_transform": "raw"
+    },
+    "Linear Regression (Log Target)": {
+      "train_r2": 0.5008,
+      "test_r2": 0.5759,
+      "train_mae": 4269.99,
+      "test_mae": 3711.51,
+      "train_rmse": 8569.94,
+      "test_rmse": 7819.43,
+      "cv_r2_mean": 0.4729,
+      "cv_r2_std": 0.068,
+      "train_test_r2_gap": -0.0751,
+      "target_transform": "log1p"
+    },
+    "Random Forest (Log Target)": {
+      "train_r2": 0.9576,
+      "test_r2": 0.9115,
+      "train_mae": 1044.39,
+      "test_mae": 1785.17,
+      "train_rmse": 2498.76,
+      "test_rmse": 3571.27,
+      "cv_r2_mean": 0.8327,
+      "cv_r2_std": 0.0456,
+      "train_test_r2_gap": 0.046,
+      "target_transform": "log1p"
+    },
+    "Gradient Boosting (Log Target)": {
+      "train_r2": 0.8741,
+      "test_r2": 0.9158,
+      "train_mae": 1974.24,
+      "test_mae": 1729.31,
+      "train_rmse": 4302.98,
+      "test_rmse": 3484.92,
+      "cv_r2_mean": 0.8302,
+      "cv_r2_std": 0.0426,
+      "train_test_r2_gap": -0.0416,
+      "target_transform": "log1p"
+    },
+    "XGBoost (Log Target)": {
+      "train_r2": 0.9888,
+      "test_r2": 0.8485,
+      "train_mae": 552.77,
+      "test_mae": 2418.02,
+      "train_rmse": 1284.9,
+      "test_rmse": 4672.82,
+      "cv_r2_mean": 0.7933,
+      "cv_r2_std": 0.0448,
+      "train_test_r2_gap": 0.1402,
+      "target_transform": "log1p"
+    },
+    "Tuned Gradient Boosting Regressor": {
+      "train_r2": 0.8687,
+      "test_r2": 0.9188,
+      "train_mae": 2481.26,
+      "test_mae": 2123.89,
+      "train_rmse": 4395.06,
+      "test_rmse": 3421.9,
+      "cv_r2_mean": 0.8433,
+      "cv_r2_std": 0.0361,
+      "train_test_r2_gap": -0.0501,
+      "model_name": "Tuned Gradient Boosting Regressor",
+      "best_params": {
+        "regressor__subsample": "0.9",
+        "regressor__n_estimators": "100",
+        "regressor__min_samples_split": "10",
+        "regressor__min_samples_leaf": "2",
+        "regressor__max_depth": "2",
+        "regressor__learning_rate": "0.08"
+      }
+    }
+  },
+  "feature_importances": [
+    {
+      "feature": "smoker_x_bmi",
+      "importance": 0.8003069341829021
+    },
+    {
+      "feature": "age",
+      "importance": 0.11090713911589706
+    },
+    {
+      "feature": "smoker_yes",
+      "importance": 0.051552008506943324
+    },
+    {
+      "feature": "bmi",
+      "importance": 0.023270749429237857
+    },
+    {
+      "feature": "children",
+      "importance": 0.0097365347844941
+    },
+    {
+      "feature": "region_southwest",
+      "importance": 0.0013938609509545697
+    },
+    {
+      "feature": "region_northeast",
+      "importance": 0.0013436739808307286
+    },
+    {
+      "feature": "sex_male",
+      "importance": 0.0008789871817972831
+    },
+    {
+      "feature": "bmi_category_Overweight",
+      "importance": 0.00016904261081740533
+    },
+    {
+      "feature": "age_group_45-54",
+      "importance": 0.00013808691756871596
+    },
+    {
+      "feature": "region_northwest",
+      "importance": 0.00012195480804964779
+    },
+    {
+      "feature": "age_group_55+",
+      "importance": 7.467742934341494e-05
+    },
+    {
+      "feature": "age_group_30-44",
+      "importance": 7.001945361351919e-05
+    },
+    {
+      "feature": "region_southeast",
+      "importance": 3.633064755032509e-05
+    },
+    {
+      "feature": "obese",
+      "importance": 0.0
+    },
+    {
+      "feature": "bmi_category_Underweight",
+      "importance": 0.0
+    },
+    {
+      "feature": "bmi_category_Obese",
+      "importance": 0.0
+    },
+    {
+      "feature": "bmi_category_Normal",
+      "importance": 0.0
+    },
+    {
+      "feature": "age_group_18-29",
+      "importance": 0.0
+    }
+  ],
+  "outlier_stats": {
+    "q1": 4746.344,
+    "q3": 16657.71745,
+    "iqr": 11911.37345,
+    "upper_bound": 34524.777625,
+    "lower_bound": 0.0,
+    "outlier_count": 139,
+    "outlier_percentage": 10.4,
+    "smoker_proportion_among_outliers_pct": 97.84,
+    "explanation": "There are 139 charges above $34524.78. 97.8% of these high-cost individuals are smokers. These data points represent genuine clinical severity and risk signals, so they are retained to avoid biasing the predictive model."
+  }
+}
