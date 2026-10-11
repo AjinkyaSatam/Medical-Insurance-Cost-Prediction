@@ -6,6 +6,7 @@ import {
   BarChart3,
   Award,
   Lightbulb,
+  FileSpreadsheet,
   Sun,
   Moon,
   Menu,
@@ -62,6 +63,7 @@ export default function Layout({ children }) {
   const navItems = [
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Predict Cost', path: '/predict', icon: Calculator },
+    { name: 'Bulk Estimate', path: '/bulk', icon: FileSpreadsheet },
     { name: 'EDA Analytics', path: '/eda', icon: BarChart3 },
     { name: 'Model Performance', path: '/performance', icon: Award },
     { name: 'Coefficients & Insights', path: '/insights', icon: Lightbulb },

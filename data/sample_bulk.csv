@@ -1,0 +1,9 @@
+name,age,sex,bmi,children,smoker,region,height_cm,weight_kg
+Aarav Sharma,21,male,22.4,0,no,northwest,,
+Vikram Malhotra,54,male,32.5,1,yes,southeast,,
+Priya Patel,39,female,24.8,2,no,southwest,,
+Ananya Iyer,45,female,28.2,1,no,northeast,,
+Rohan Verma,31,male,,0,no,southeast,175,78
+Sneha Reddy , 28 , female , 21.5 , 0 , no , Northwest ,,
+Rahul Mehta,15,male,23.0,0,no,southwest,,
+Kavita Joshi,42,female,26.0,1,,northeast,,

@@ -7,6 +7,7 @@ import Predict from './pages/Predict';
 import EDA from './pages/EDA';
 import Performance from './pages/Performance';
 import Insights from './pages/Insights';
+import BulkPredict from './pages/BulkPredict';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/predict" element={<Predict />} />
+            <Route path="/bulk" element={<BulkPredict />} />
             <Route path="/eda" element={<EDA />} />
             <Route path="/performance" element={<Performance />} />
             <Route path="/insights" element={<Insights />} />

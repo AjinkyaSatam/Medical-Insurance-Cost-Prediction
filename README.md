@@ -99,7 +99,9 @@ $$\text{Estimated INR} = \text{Predicted USD} \times \text{USD\_TO\_INR\_RATE} \
  │                FastAPI Backend (Uvicorn)                    │
  │               http://localhost:8000/api                     │
  │   ├── backend/config.py     ──> USD_TO_INR_RATE, COST_FACTOR│
- │   ├── POST /api/predict     ──> Linear Regression inference │
+ │   ├── POST /api/predict     ──> Linear Regression + 5 Feats │
+ │   ├── POST /api/whatif      ──> Counterfactual simulations  │
+ │   ├── POST /api/bmi-calculate─> BMI formula & Asian cutoffs │
  │   ├── GET  /api/metrics     ──> Baseline vs Model diagnostic│
  │   ├── GET  /api/insights    ──> Coefficients in INR & USD   │
  │   └── GET  /api/eda         ──> Converted EDA distributions │
@@ -115,6 +117,92 @@ $$\text{Estimated INR} = \text{Predicted USD} \times \text{USD\_TO\_INR\_RATE} \
  │   └── LinearRegression() (Ordinary Least Squares)           │
  └─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 💡 Five Value-Added Analytics Features (Linear Regression Powered)
+
+All five features are computed using plain mathematical formulas, the trained Linear Regression pipeline, and empirical dataset statistics (no additional ML classifiers):
+
+### 1. Feature 1 — Estimated Predictive Range (95% Error Interval)
+- **Mathematical Formula:**
+  $$\text{Interval}_{\text{USD}} = \left[\max\left(0,\, \hat{y} - 1.96 \cdot s_e\right),\; \hat{y} + 1.96 \cdot s_e\right]$$
+- **Hold-out Test Residual Std Dev ($s_e$):** **$3,802.71** (₹3,65,060 at ₹96.0/$)
+- **Presentation:** Displayed as `"Likely range: Rs X - Rs Y"` on the prediction result card, labelled `"approximate range"` with an interactive tooltip explaining that it reflects the model's typical regression error on unseen data. Floored at ₹0 to prevent impossible negative insurance claims.
+
+### 2. Feature 2 — Factor Contribution Breakdown
+- **Mathematical Formula (relative to average training profile):**
+  $$\text{Contribution}_j = \beta_j \cdot (x_j - \bar{x}_j)$$
+- **Column Grouping:** Transformed columns are mapped directly back to the 6 original inputs:
+  - `age`: `age` + `age_group_*`
+  - `sex`: `sex_male`
+  - `bmi`: `bmi` + `obese` + `bmi_category_*` + $50\%$ of `smoker_x_bmi`
+  - `children`: `children`
+  - `smoker`: `smoker_yes` + $50\%$ of `smoker_x_bmi`
+  - `region`: `region_*`
+- **Mathematical Invariant:**
+  $$\text{Average Prediction} + \sum_{j=1}^{6} \text{Contribution}_j = \text{Person's Prediction}$$
+  Automatically verified in code and tested via pytest ($\Delta < \$0.05$).
+- **Visualization:** Horizontal divergent bar chart with positive contributions in rose (raises cost) and negative in emerald (lowers cost), labeled in plain English and converted to INR with Lakh/Crore short forms.
+
+### 3. Feature 3 — Counterfactual What-If Scenarios
+- **API Endpoint:** `POST /api/whatif`
+- Re-runs the saved pipeline changing exactly ONE modifiable factor:
+  - **a) Smoking Cessation:** `smoker` $\rightarrow$ `"no"` (only if currently a smoker)
+  - **b) Exit Clinical Obesity:** `bmi` $\rightarrow$ `TARGET_BMI_UNDER_30` ($29.9$, only if BMI $\ge 30$)
+  - **c) Reach Normal Weight:** `bmi` $\rightarrow$ `TARGET_BMI_NORMAL` ($24.9$, only if BMI $> 24.9$)
+- **Guaranteed Positive Savings:** A scenario is omitted if savings $\le 0$.
+- **Card Note:** *"Model-based estimate of an association in the dataset, not a guarantee."*
+
+### 4. Feature 4 — Physiological BMI Calculator & Indian Guidelines
+- **Formula:** $\text{BMI} = \text{round}\left(\frac{\text{weight\_kg}}{(\text{height\_cm}/100)^2},\, 1\right)$
+- **Validation:** Strict physiological ranges (Height: 100–250 cm, Weight: 20–300 kg).
+- **Guidelines Comparison:**
+  - **WHO / US Dataset:** Normal ($18.5 - 24.9$), Overweight ($25.0 - 29.9$), Obese ($\ge 30.0$).
+  - **Indian Consensus (ICMR & Ministry of Health):** Overweight ($\ge 23.0\text{ kg/m}^2$) and Obese ($\ge 25.0\text{ kg/m}^2$) due to South Asian population visceral fat profiles.
+
+### 5. Feature 5 — How the Customer Can Lower Their Estimate
+- **Respectful & Supportive Tone:** No shaming language.
+- Ordered by estimated saving descending (e.g. *"Quit smoking: could lower your estimate by about Rs X"*).
+- Only includes modifiable factors (smoking status, BMI).
+- Explicit notice that fixed demographic factors (age, biological sex, region, children) cannot and should not be changed and are not judged.
+- If profile has no modifiable drivers: *"Your profile has no major modifiable cost drivers in this model."*
+- Mandatory disclaimer: *"General information only, not medical advice. Consult a doctor before making health changes."*
+
+### Shared Helper — Rule-Based Risk Stratification (`risk_level`)
+- **Cutoffs (33rd and 66th empirical percentiles of training charges):**
+  - **Low Risk:** $< \$6,389.38$ ($<\text{₹}6,13,380$)
+  - **Moderate Risk:** $\$6,389.38 - \$13,012.21$ ($\text{₹}6,13,380 - \text{₹}12,49,172$)
+  - **High Risk:** $> \$13,012.21$ ($>\text{₹}12,49,172$)
+- Rule-based grouping helper used in `/api/predict` and `/api/predict-batch` — **NOT an ML classifier**.
+
+### 6. Feature 6 — Bulk CSV Upload & Batch Inference
+- **API Endpoints:**
+  - `POST /api/predict-batch` (Multipart form-data)
+  - `GET /api/sample-bulk-csv` (Download sample CSV template)
+- **Limits & Privacy:**
+  - Max **2 MB** file size and max **5,000 rows**.
+  - **Processed strictly in-memory** using Python `io.StringIO` and `csv.DictReader`; uploaded files are **never saved to disk or persistent storage**.
+- **Accepted Columns (Case-insensitive, whitespace trimmed):**
+  - `name` (optional beneficiary identifier)
+  - `age` (18–100)
+  - `sex` (`male` / `female` / `m` / `f`)
+  - `bmi` (10.0–60.0) — *Fallback: if `bmi` is omitted but `height_cm` and `weight_kg` exist, BMI is computed automatically via the standard formula!*
+  - `children` (0–10)
+  - `smoker` (`yes` / `no` / `y` / `n` / `true` / `false`)
+  - `region` (`southwest`, `southeast`, `northwest`, `northeast`)
+- **Row-Level Validation Without Crashing:**
+  - Evaluates each row independently against physiological and categorical constraints.
+  - Malformed rows or out-of-bound values are collected into an `errors` table (`row`, `column`, `reason`).
+  - Valid rows continue processing without failing the batch.
+- **Batch Output Per Row:**
+  - Beneficiary details, `estimated_cost_inr`, 95% interval (`low`, `high`), `risk_level` (rule-based low/medium/high), `top_cost_driver` (largest positive linear contribution), and `short_suggestion`.
+- **Aggregate Summary Metrics:**
+  - Rows processed, rows skipped, average estimate (₹ and $), total estimate (₹ and $), and count by risk tier.
+- **Spreadsheet Formula Injection Guard (CSV Export):**
+  - When exporting results to CSV on the frontend, any text cell starting with `=`, `+`, `-`, or `@` is prefixed with a single quote (`'`) to neutralize Dynamic Data Exchange (DDE) and formula execution in Microsoft Excel or Google Sheets.
+- **Official Sample Template:**
+  - Available at `data/sample_bulk.csv` or via `GET /api/sample-bulk-csv`. Includes 8 diverse profiles (6 valid scenarios including height/weight fallback and casing variations, 1 out-of-range age row, and 1 blank required field row to demonstrate resilient error reporting).
 
 ---
 

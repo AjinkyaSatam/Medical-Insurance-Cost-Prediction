@@ -123,14 +123,86 @@ Examiners frequently ask: *"What are the limitations of your approach?"*
 
 ---
 
-## 7. Quick Viva Q&A Cheat Sheet
+---
+
+## 7. How the 5 Value-Added Analytics Features Are Calculated
+
+Examiners love asking: *"Did you use another machine learning model for the range, what-if, or suggestions?"*
+**The answer is NO.** Everything is calculated using the single saved Linear Regression pipeline, its coefficients ($\beta$), and plain mathematical formulas.
+
+### 7.1 Feature 1 — Estimated Predictive Range
+- **Formula:**
+  $$\text{Range}_{\text{USD}} = \left[\max\left(0,\, \hat{y} - 1.96 \cdot s_e\right),\; \hat{y} + 1.96 \cdot s_e\right]$$
+  $$\text{Range}_{\text{INR}} = \text{Range}_{\text{USD}} \times \text{USD\_TO\_INR\_RATE} \times \text{INDIA\_COST\_FACTOR}$$
+- **What is $s_e$?** The sample standard deviation of hold-out test residuals ($y_{\text{test}} - \hat{y}_{\text{test}}$), equal to **$3,802.71** (ddof=1).
+- **Why 1.96?** In a normal distribution, $\pm 1.96$ standard deviations covers approximately $95\%$ of the probability mass. This provides an empirical predictive interval representing the model's typical prediction error.
+- **Why floor at 0?** Linear regression can technically predict negative lower bounds for young healthy individuals; flooring at 0 prevents impossible negative medical claims.
+
+### 7.2 Feature 2 — Factor Contributions Breakdown
+- **Mathematical Formula:**
+  $$\text{Contribution}_j = \beta_j \cdot (x_j - \bar{x}_j)$$
+  Where $\beta_j$ is the regression coefficient, $x_j$ is the transformed standardized feature for this individual, and $\bar{x}_j$ is the mean of feature $j$ across the training set.
+- **Grouping Back to 6 Original Inputs:**
+  - One-hot region columns (`region_northeast`, `region_northwest`, etc.) sum under `region`.
+  - Age groups (`age_group_*`) and standardized `age` sum under `age`.
+  - Obese indicators (`obese`, `bmi_category_*`) and standardized `bmi` sum under `bmi`.
+  - Binary `sex_male` sums under `sex`.
+  - Binary `smoker_yes` sums under `smoker`.
+  - The joint interaction term `smoker_x_bmi` is attributed 50% to `smoker` and 50% to `bmi`.
+- **Proof of Mathematical Identity:**
+  $$\hat{y}_{\text{person}} = \beta_0 + \sum_{j} \beta_j x_j = \left(\beta_0 + \sum_{j} \beta_j \bar{x}_j\right) + \sum_{j} \beta_j (x_j - \bar{x}_j) = \hat{y}_{\text{average}} + \sum_{j} \text{Contribution}_j$$
+  This identity is verified in code and unit tested with zero discrepancy ($\Delta < \$0.05$).
+
+### 7.3 Feature 3 — What-If Counterfactual Simulations
+- **Mechanism:** Re-evaluates the trained pipeline modifying exactly ONE input:
+  - *Quit Smoking:* Sets `smoker = 'no'` (only if currently `'yes'`).
+  - *Exit Obesity:* Sets `bmi = TARGET_BMI_UNDER_30` ($29.9$, only if BMI $\ge 30$).
+  - *Reach Normal Weight:* Sets `bmi = TARGET_BMI_NORMAL` ($24.9$, only if BMI $> 24.9$).
+- **Filtering:** A scenario is included *only* if savings $> 0$. For non-smokers with standard BMI, savings would be $\le 0$, so scenarios are omitted.
+- **Guarantee Disclaimer:** Always carries the note: *"Model-based estimate of an association in the dataset, not a guarantee."*
+
+### 7.4 Feature 4 — Physiological BMI Calculator & Indian Guidelines
+- **Formula:** $\text{BMI} = \text{round}\left(\frac{\text{weight\_kg}}{(\text{height\_cm}/100)^2},\, 1\right)$
+- **Input Validation:** Enforces physiological limits ($100 \le \text{height} \le 250\text{ cm}$, $20 \le \text{weight} \le 300\text{ kg}$).
+- **Why Do Indian Guidelines Differ from the US Dataset?**
+  - **WHO / US Dataset Cutoffs:** Overweight at BMI $\ge 25$, Obesity at BMI $\ge 30$.
+  - **Consensus Guidelines for Asian Indians (ICMR & MoHFW):** Overweight at BMI $\ge 23$, Obesity at BMI $\ge 25$.
+  - **Clinical Reason:** South Asians experience elevated visceral adiposity, insulin resistance, and cardiovascular morbidity at substantially lower BMIs compared to Caucasian populations.
+
+### 7.5 Feature 5 — How to Lower Your Estimated Cost (Actionable Tips)
+- **Derived purely from What-If savings:** Sorted descending by estimated rupee saving.
+- **Focuses strictly on modifiable factors:** Smoking and BMI.
+- **Ethical & Supportive Design:** Clearly notes that fixed demographic factors (age, biological sex, geographic region, children) cannot and should not be changed and are not judged. No shaming language is used.
+- **Medical Disclaimer:** *"General information only, not medical advice. Consult a doctor before making health changes."*
+
+### 7.6 Shared Helper — Empirical Risk Levels (`risk_level`)
+- **Cutoffs:** Computed once from empirical training set charge percentiles:
+  - **Low Risk:** $< 33\text{rd percentile}$ ($\$6,389.38$ / $\text{₹}6,13,380$)
+  - **Moderate Risk:** $33\text{rd}$ to $66\text{th percentile}$ ($\$6,389.38 - \$13,012.21$ / $\text{₹}6,13,380 - \text{₹}12,49,172$)
+  - **High Risk:** $> 66\text{th percentile}$ ($\$13,012.21$ / $\text{₹}12,49,172$)
+- **Examiner Note:** Stress that this is a **rule-based grouping heuristic**, NOT a classifier or secondary machine learning model. Both single `/api/predict` and batch `/api/predict-batch` call the exact same `risk_level` function in `backend/features.py`, ensuring consistent risk stratification across all interfaces.
+
+### 7.7 Feature 6 — How Batch CSV Scoring Works (In-Memory Processing)
+- **Zero Disk Persistence:** The uploaded multipart CSV stream is read directly into memory via `io.StringIO` and parsed with `csv.DictReader`. At no point is the upload written to disk, protecting user data privacy.
+- **Fail-Safe Row Validation:** The parser validates each row independently against physiological and categorical constraints (e.g., age 18–100, BMI 10–60, children 0–10). If a row is corrupted (e.g., negative BMI or empty smoker), it is recorded in an `errors` list with its row number, column name, and explanation, while all valid rows proceed to scoring without crashing the server.
+- **Exact Single-Batch Equivalence:** Each valid row is passed to `process_single_record()`, which invokes the exact same Scikit-Learn `pipeline.predict()`, `compute_range()`, `compute_contributions()`, `compute_whatif()`, and `compute_suggestions()` functions as the single prediction endpoint. Single and batch scores match to the exact decimal.
+- **DDE / Formula Injection Guard on Export:** In spreadsheet applications (Excel, Calc), cells starting with `=`, `+`, `-`, or `@` can execute external commands or formulas (CSV Injection / Dynamic Data Exchange attacks). When exporting results to CSV on the frontend, any text value starting with these characters is escaped with a prepended single quote (`'`), rendering it inert plain text.
+
+---
+
+## 8. Quick Viva Q&A Cheat Sheet
 
 | Question | Short Viva Answer |
 | :--- | :--- |
 | **Q1. Which model is used in your project?** | Multiple Linear Regression fitted via Ordinary Least Squares (OLS) inside a Scikit-Learn Pipeline. |
 | **Q2. What is your test $R^2$ score?** | 0.8983 (89.83% variance explained on the unseen 20% test set). |
 | **Q3. Did your model overfit?** | No. Train $R^2$ is 83.66% and 5-Fold Cross-Validation $R^2$ is 82.59% ($\pm 3.92\%$). The train/test gap is small, confirming strong generalization. |
-| **Q4. Why did you compare against a trivial baseline?** | A dummy regressor that always predicts the training mean ($\bar{y}$) yields an $R^2$ of 0.0% and MAE of $9,081. Comparing against it proves that our Linear Regression model delivers genuine predictive power (reducing MAE by 72.7%). |
-| **Q5. How do you prevent data leakage?** | Feature scaling (`StandardScaler`) and encoding (`OneHotEncoder`) are bundled inside a Scikit-Learn `Pipeline` and fitted *only* on the training data. |
+| **Q4. Why did you compare against a trivial baseline?** | A dummy regressor predicting the training mean ($\bar{y}$) yields an $R^2$ of 0.0% and MAE of $9,081. Our Linear Regression reduces MAE by 72.7% to $2,475. |
+| **Q5. How do you prevent data leakage?** | Feature scaling (`StandardScaler`) and encoding (`OneHotEncoder`) are bundled inside a Scikit-Learn `Pipeline` fitted *only* on the training split. |
 | **Q6. What does the intercept represent?** | $\beta_0 \approx \$18,438.79$ represents the expected baseline cost when all standardized features equal zero. |
-| **Q7. Why did you not retrain on INR data?** | The original dataset has actual historical dollar claims. Retraining on arbitrarily converted numbers would invent data. Keeping the model in USD and adding a configurable translation layer maintains scientific integrity. |
+| **Q7. How is the estimated range calculated?** | Prediction $\pm 1.96 \times s_e$ ($s_e = \$3,802.71$ residual standard deviation), floored at 0 and converted to INR. |
+| **Q8. How does factor breakdown prove its accuracy?** | We compute $\beta_j (x_j - \bar{x}_j)$ for each factor and mathematically verify that base prediction + sum of contributions equals the person's prediction. |
+| **Q9. Did you train a classifier for risk levels?** | No. Risk levels are determined by fixed rule-based cutoffs at the 33rd and 66th empirical percentiles of historical training charges ($<\$6.38k$ Low, $\$6.38k-\$13.01k$ Medium, $>\$13.01k$ High). |
+| **Q10. How does the batch CSV prediction endpoint guarantee consistency with single predictions?** | Both endpoints call the exact same `process_single_record()` helper in `backend/features.py`, using the identical pipeline and INR conversion rate. |
+| **Q11. How does the application handle invalid or corrupted rows in bulk uploads?** | It uses non-crashing row-level validation: invalid rows are recorded in an error log with row number, column, and reason, while valid rows are processed and scored normally. |
+| **Q12. What is formula injection and how does your CSV export protect against it?** | If exported text cells start with `=`, `+`, `-`, or `@`, spreadsheet programs can execute malicious formulas. We prepend a single quote (`'`) to neutralise formula execution. |

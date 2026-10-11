@@ -1,5 +1,11 @@
-import urllib.request
+import os
+import sys
 import json
+import urllib.request
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 samples = [
     {
@@ -16,23 +22,49 @@ samples = [
     }
 ]
 
-print("=" * 60)
-print("PREDICTION TEST ON 3 TARGET PROFILES")
-print("=" * 60)
+def run_samples():
+    print("=" * 60)
+    print("PREDICTION TEST ON 3 TARGET PROFILES")
+    print("=" * 60)
 
-for s in samples:
-    req = urllib.request.Request(
-        'http://localhost:8000/api/predict',
-        data=json.dumps(s['payload']).encode('utf-8'),
-        headers={'Content-Type': 'application/json'}
-    )
-    res = json.loads(urllib.request.urlopen(req).read())
-    usd = res['predicted_usd']
-    inr = res['estimated_inr']
-    print(f"Profile: {s['label']}")
-    print(f"  Inputs: Age {s['payload']['age']}, {s['payload']['sex']}, BMI {s['payload']['bmi']}, Children {s['payload']['children']}, Smoker '{s['payload']['smoker']}', Region '{s['payload']['region']}'")
-    print(f"  Predicted USD:     ${usd:,.2f}")
-    print(f"  Estimated INR:     Rs {inr:,.2f} ({res['risk_label']})")
-    print(f"  Rate & Factor:     USD_TO_INR = {res['usd_to_inr_rate']}, INDIA_COST_FACTOR = {res['india_cost_factor']}")
-    print(f"  Peer Cohort (INR): Rs {res['average_cost_for_similar_profiles_inr']:,.2f}")
-    print("-" * 60)
+    # Try live server first; fall back to FastAPI TestClient if server is offline
+    client = None
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://localhost:8000/api/health")
+        with urllib.request.urlopen(req, timeout=1) as resp:
+            pass
+    except Exception:
+        from fastapi.testclient import TestClient
+        from backend.main import app, load_assets
+        load_assets()
+        client = TestClient(app)
+
+    for s in samples:
+        if client is not None:
+            res = client.post("/api/predict", json=s["payload"]).json()
+        else:
+            req = urllib.request.Request(
+                'http://localhost:8000/api/predict',
+                data=json.dumps(s['payload']).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            res = json.loads(urllib.request.urlopen(req).read())
+
+        usd = res['predicted_usd']
+        inr = res['estimated_inr']
+        low_inr = res.get('low', res.get('range_low_inr'))
+        high_inr = res.get('high', res.get('range_high_inr'))
+        print(f"Profile: {s['label']}")
+        print(f"  Inputs: Age {s['payload']['age']}, {s['payload']['sex']}, BMI {s['payload']['bmi']}, Children {s['payload']['children']}, Smoker '{s['payload']['smoker']}', Region '{s['payload']['region']}'")
+        print(f"  Predicted USD:     ${usd:,.2f}")
+        print(f"  Estimated INR:     Rs {inr:,.2f} ({res['risk_label']})")
+        print(f"  Likely Range:      Rs {low_inr:,.2f} - Rs {high_inr:,.2f}")
+        print(f"  Rate & Factor:     USD_TO_INR = {res['usd_to_inr_rate']}, INDIA_COST_FACTOR = {res['india_cost_factor']}")
+        print(f"  Peer Cohort (INR): Rs {res['average_cost_for_similar_profiles_inr']:,.2f}")
+        print(f"  What-If Scenarios: {len(res.get('whatif', []))} available")
+        print("-" * 60)
+
+
+if __name__ == "__main__":
+    run_samples()

@@ -21,6 +21,30 @@ export const api = {
     return res.data;
   },
 
+  getWhatif: async (payload) => {
+    const res = await apiClient.post('/api/whatif', payload);
+    return res.data;
+  },
+
+  calculateBmi: async (payload) => {
+    const res = await apiClient.post('/api/bmi-calculate', payload);
+    return res.data;
+  },
+
+  predictBatch: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post('/api/predict-batch', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 30000,
+    });
+    return res.data;
+  },
+
+  getSampleBulkCsvUrl: () => `${API_BASE_URL}/api/sample-bulk-csv`,
+
   getEdaData: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.region && params.region.length) {
