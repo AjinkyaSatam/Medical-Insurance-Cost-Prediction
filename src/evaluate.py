@@ -1,7 +1,6 @@
 """
-Medical Insurance Cost Prediction - Model Evaluation & Visualization Module
-Author: College ML Project Team
-License: MIT
+Medical Insurance Cost Prediction - Model Evaluation & Diagnostic Visualization Module
+Model: Linear Regression (Ordinary Least Squares)
 """
 
 import os
@@ -24,9 +23,9 @@ def evaluate_saved_model(
     output_dir: str = "reports/figures"
 ):
     """
-    Loads saved model, evaluation cache, and metrics.
+    Loads saved Linear Regression model, evaluation cache, and metrics.
     Generates comparison tables, residual plots, predicted vs actual plots,
-    and feature importance charts.
+    and coefficients charts.
     """
     os.makedirs(output_dir, exist_ok=True)
     sns.set_theme(style="whitegrid", palette="muted")
@@ -36,75 +35,69 @@ def evaluate_saved_model(
     if not os.path.exists(metrics_path):
         raise FileNotFoundError(f"Metrics not found at {metrics_path}. Please run src/train.py first.")
 
-    with open(metrics_path, "r") as f:
+    with open(metrics_path, "r", encoding="utf-8") as f:
         metrics_data = json.load(f)
 
     print("=" * 70)
-    print("SAVED MODEL SUMMARY & METRICS")
+    print("SAVED LINEAR REGRESSION SUMMARY & METRICS")
     print("=" * 70)
-    print(f"Final Selected Model: {metrics_data['final_model']}")
-    print(f"Best Hyperparameters: {metrics_data['best_params']}")
+    print(f"Model Name:           {metrics_data.get('model_name', 'Linear Regression')}")
+    print(f"Algorithm:            {metrics_data.get('algorithm', 'Ordinary Least Squares')}")
+    print(f"Intercept (b0):       ${metrics_data.get('intercept', 0.0):.2f}")
+    
     final_m = metrics_data["final_metrics"]
-    print(f"Train R2 Score:       {final_m['train_r2']:.4f}")
-    print(f"Test R2 Score:        {final_m['test_r2']:.4f}")
-    print(f"5-Fold CV R2 Score:   {final_m['cv_r2_mean']:.4f} (+/- {final_m['cv_r2_std']:.4f})")
-    print(f"Test MAE:             ${final_m['test_mae']:.2f}")
-    print(f"Test RMSE:            ${final_m['test_rmse']:.2f}")
-    print(f"Train/Test Gap:       {final_m['train_test_r2_gap']:.4f}")
-    print(f"Overfitting Analysis: {metrics_data['overfitting_diagnosis']}")
+    base_m = metrics_data.get("baseline_metrics", {})
+    print(f"Train R² Score:       {final_m['train_r2']:.4f} (Baseline: {base_m.get('train_r2', 0.0):.4f})")
+    print(f"Test R² Score:        {final_m['test_r2']:.4f} (Baseline: {base_m.get('test_r2', 0.0):.4f})")
+    print(f"5-Fold CV R² Score:   {final_m['cv_r2_mean']:.4f} (+/- {final_m['cv_r2_std']:.4f})")
+    print(f"Train MAE:            ${final_m['train_mae']:.2f} (Baseline: ${base_m.get('train_mae', 0.0):.2f})")
+    print(f"Test MAE:             ${final_m['test_mae']:.2f} (Baseline: ${base_m.get('test_mae', 0.0):.2f})")
+    print(f"Train RMSE:           ${final_m['train_rmse']:.2f} (Baseline: ${base_m.get('train_rmse', 0.0):.2f})")
+    print(f"Test RMSE:            ${final_m['test_rmse']:.2f} (Baseline: ${base_m.get('test_rmse', 0.0):.2f})")
 
-    # 2. Model Comparison Table
-    comp_dict = metrics_data["comparison_table"]
-    comp_df = pd.DataFrame(comp_dict).T[[
-        "cv_r2_mean", "cv_r2_std", "train_r2", "test_r2", "test_mae", "test_rmse", "train_test_r2_gap"
-    ]].sort_values(by="cv_r2_mean", ascending=False)
+    # 2. Plot 1: Baseline vs Linear Regression Comparison Bar Chart
+    plt.figure(figsize=(9, 4.5))
+    categories = ["Train R²", "Test R²", "5-Fold CV R²"]
+    base_vals = [base_m.get("train_r2", 0.0), base_m.get("test_r2", 0.0), 0.0]
+    lr_vals = [final_m["train_r2"], final_m["test_r2"], final_m["cv_r2_mean"]]
 
-    print("\n--- COMPLETE BENCHMARK COMPARISON TABLE ---")
-    print(comp_df.to_string())
-
-    # 3. Plot 1: Model Comparison Bar Chart (CV R2 and Test R2)
-    plt.figure(figsize=(10, 5))
-    plot_models = [m for m in comp_df.index if "Tuned" not in m]  # Base models + Log versions
-    sub_df = comp_df.loc[plot_models].sort_values(by="test_r2", ascending=True)
-
-    y_pos = np.arange(len(sub_df))
-    plt.barh(y_pos - 0.2, sub_df["cv_r2_mean"], height=0.4, label="5-Fold CV R²", color="#3b82f6")
-    plt.barh(y_pos + 0.2, sub_df["test_r2"], height=0.4, label="Test R²", color="#10b981")
-    plt.yticks(y_pos, sub_df.index)
-    plt.xlabel("R² Score (Higher is Better)")
-    plt.title("Model Performance Benchmark: CV vs Test R² Score", fontsize=13, weight="bold")
-    plt.xlim(0.4, 1.0)
-    plt.legend(loc="lower right")
+    x = np.arange(len(categories))
+    width = 0.35
+    plt.bar(x - width/2, base_vals, width, label="Mean Baseline", color="#94a3b8")
+    plt.bar(x + width/2, lr_vals, width, label="Linear Regression", color="#2563eb")
+    plt.ylabel("R² Score (Coefficient of Determination)")
+    plt.title("Performance Comparison: Mean Baseline vs Linear Regression", fontsize=12, weight="bold")
+    plt.xticks(x, categories)
+    plt.ylim(-0.05, 1.0)
+    plt.legend()
     comp_plot_path = os.path.join(output_dir, "model_comparison.png")
     plt.savefig(comp_plot_path, dpi=300)
     plt.close()
     print(f"[*] Saved model comparison chart: {comp_plot_path}")
 
-    # 4. Load eval cache for scatter & residual plots
+    # 3. Load eval cache for scatter & residual plots
     if os.path.exists(cache_path):
-        with open(cache_path, "r") as f:
+        with open(cache_path, "r", encoding="utf-8") as f:
             cache = json.load(f)
         y_test = np.array(cache["y_test"])
         y_pred = np.array(cache["y_pred"])
         residuals = np.array(cache["residuals"])
     else:
-        # Fallback: recompute from clean dataset
-        model = joblib.load(model_path)
-        data = load_and_clean_data("data/insurance.csv")
-        y_test = data["charges"].values[-268:]
-        X_test = data.drop(columns=["charges"]).iloc[-268:]
-        y_pred = model.predict(X_test)
+        # Fallback from metrics
+        p_vs_a = metrics_data.get("predicted_vs_actual", [])
+        y_test = np.array([pt["actual"] for pt in p_vs_a])
+        y_pred = np.array([pt["predicted"] for pt in p_vs_a])
         residuals = y_test - y_pred
 
     # Plot 2: Predicted vs Actual Scatter Plot
     plt.figure(figsize=(8, 6))
-    plt.scatter(y_test, y_pred, alpha=0.6, color="#2563eb", edgecolors="w", s=50, label="Predictions")
+    plt.scatter(y_test, y_pred, alpha=0.6, color="#2563eb", edgecolors="w", s=50, label="Test Samples")
     min_val = min(y_test.min(), y_pred.min())
     max_val = max(y_test.max(), y_pred.max())
-    plt.plot([min_val, max_val], [min_val, max_val], "r--", lw=2, label="Perfect Fit (y = x)")
+    plt.plot([min_val, max_val], [min_val, max_val], "r--", lw=2, label="Perfect Line (y = x)")
     plt.xlabel("Actual Charges ($)", fontsize=11)
     plt.ylabel("Predicted Charges ($)", fontsize=11)
-    plt.title(f"Predicted vs Actual Charges ({metrics_data['final_model']})\nTest R²: {final_m['test_r2']:.4f} | MAE: ${final_m['test_mae']:.2f}", fontsize=12, weight="bold")
+    plt.title(f"Predicted vs Actual Charges (Linear Regression)\nTest R²: {final_m['test_r2']:.4f} | Test MAE: ${final_m['test_mae']:.2f}", fontsize=12, weight="bold")
     plt.legend()
     pred_act_path = os.path.join(output_dir, "predicted_vs_actual.png")
     plt.savefig(pred_act_path, dpi=300)
@@ -126,25 +119,27 @@ def evaluate_saved_model(
     axes[1].axvline(0, color="red", linestyle="--", lw=1.5)
     axes[1].set_xlabel("Residual Error ($)")
     axes[1].set_ylabel("Frequency")
-    axes[1].set_title("Residual Error Distribution (Near-Normal)", fontsize=12, weight="bold")
+    axes[1].set_title("Residual Error Distribution", fontsize=12, weight="bold")
 
     residual_path = os.path.join(output_dir, "residuals_plot.png")
     plt.savefig(residual_path, dpi=300)
     plt.close()
     print(f"[*] Saved residual diagnostics: {residual_path}")
 
-    # Plot 4: Feature Importance
-    feat_imps = metrics_data.get("feature_importances", [])
-    if feat_imps:
-        feat_df = pd.DataFrame(feat_imps).head(10).sort_values(by="importance", ascending=True)
+    # Plot 4: Top Coefficients Chart
+    coef_list = metrics_data.get("coefficients_list", [])
+    if coef_list:
+        top_coefs = coef_list[:10]
+        c_df = pd.DataFrame(top_coefs).sort_values(by="coefficient", ascending=True)
+        colors = ["#ef4444" if val < 0 else "#10b981" for val in c_df["coefficient"]]
         plt.figure(figsize=(9, 5))
-        plt.barh(feat_df["feature"], feat_df["importance"], color="#4f46e5")
-        plt.xlabel("Relative Importance Score", fontsize=11)
-        plt.title(f"Top 10 Feature Importances ({metrics_data['final_model']})", fontsize=12, weight="bold")
-        feat_path = os.path.join(output_dir, "feature_importance.png")
+        plt.barh(c_df["feature"], c_df["coefficient"], color=colors)
+        plt.xlabel("Linear Regression Coefficient (USD)", fontsize=11)
+        plt.title("Top Feature Coefficients in Linear Regression Pipeline", fontsize=12, weight="bold")
+        feat_path = os.path.join(output_dir, "coefficients.png")
         plt.savefig(feat_path, dpi=300)
         plt.close()
-        print(f"[*] Saved feature importance chart: {feat_path}")
+        print(f"[*] Saved coefficients chart: {feat_path}")
 
     print("\n[SUCCESS] All evaluation plots and diagnostics generated successfully!")
 

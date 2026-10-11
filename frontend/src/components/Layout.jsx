@@ -12,14 +12,17 @@ import {
   X,
   Activity,
   ShieldCheck,
-  Stethoscope
+  Stethoscope,
+  Coins
 } from 'lucide-react';
 import { api } from '../api/client';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [backendHealthy, setBackendHealthy] = useState(null);
   const location = useLocation();
+  const { currency, toggleCurrency, isINR } = useCurrency();
 
   // Dark mode state persisted in localStorage
   const [isDark, setIsDark] = useState(() => {
@@ -46,7 +49,6 @@ export default function Layout({ children }) {
   };
 
   useEffect(() => {
-    // Initial health check + periodic polling every 4 seconds
     checkHealth();
     const interval = setInterval(checkHealth, 4000);
     return () => clearInterval(interval);
@@ -61,8 +63,8 @@ export default function Layout({ children }) {
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Predict Cost', path: '/predict', icon: Calculator },
     { name: 'EDA Analytics', path: '/eda', icon: BarChart3 },
-    { name: 'Model Benchmark', path: '/performance', icon: Award },
-    { name: 'Actuarial Insights', path: '/insights', icon: Lightbulb },
+    { name: 'Model Performance', path: '/performance', icon: Award },
+    { name: 'Coefficients & Insights', path: '/insights', icon: Lightbulb },
   ];
 
   return (
@@ -75,11 +77,21 @@ export default function Layout({ children }) {
           </div>
           <div>
             <h1 className="font-bold text-slate-900 dark:text-white text-base leading-tight">MediCost AI</h1>
-            <p className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider">Health Insurance ML</p>
+            <p className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider">Linear Regression (INR)</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Currency Toggle */}
+          <button
+            onClick={toggleCurrency}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-teal-500/30 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 flex items-center gap-1 transition"
+            title="Toggle Currency (INR / USD)"
+          >
+            <Coins className="w-3.5 h-3.5" />
+            <span>{currency}</span>
+          </button>
+          
           <button
             onClick={() => setIsDark(!isDark)}
             className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
@@ -111,7 +123,39 @@ export default function Layout({ children }) {
             </div>
             <div>
               <h2 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">MediCost AI</h2>
-              <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium tracking-wide">Predictive Intelligence</p>
+              <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium tracking-wide">Linear Regression (INR)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Currency Switcher */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-750">
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+              <Coins className="w-3.5 h-3.5 text-teal-500" />
+              Currency:
+            </span>
+            <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 shadow-xs">
+              <button
+                onClick={() => isINR || toggleCurrency()}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                  isINR
+                    ? 'bg-teal-500 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                ₹ INR
+              </button>
+              <button
+                onClick={() => !isINR || toggleCurrency()}
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                  !isINR
+                    ? 'bg-teal-500 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                $ USD
+              </button>
             </div>
           </div>
         </div>
@@ -158,14 +202,14 @@ export default function Layout({ children }) {
               }`}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${backendHealthy ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-              {backendHealthy === true ? 'Online' : backendHealthy === false ? 'Offline (Retry)' : 'Checking'}
+              {backendHealthy === true ? 'Online' : backendHealthy === false ? 'Offline' : 'Checking'}
             </button>
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-teal-500" />
-              <span>R² Score: 91.88%</span>
+              <span>Linear Regression (R²: 89.8%)</span>
             </div>
             <button
               onClick={() => setIsDark(!isDark)}
@@ -187,7 +231,7 @@ export default function Layout({ children }) {
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
           <p>
-            Medical Insurance Cost Prediction • Powered by Scikit-Learn Gradient Boosting & FastAPI • Estimates for demonstration purposes only.
+            Medical Insurance Cost Prediction • Multiple Linear Regression (OLS) with India INR Conversion Layer • Estimated, India-adjusted figures for academic demonstration.
           </p>
         </footer>
       </div>

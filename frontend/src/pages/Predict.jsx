@@ -3,19 +3,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calculator,
   AlertTriangle,
-  CheckCircle2,
-  TrendingUp,
-  DollarSign,
-  ArrowRight,
+  Coins,
   Shield,
   RefreshCw,
   Users,
-  Info
+  Info,
+  HelpCircle,
+  FileText
 } from 'lucide-react';
 import Card from '../components/Card';
 import { api } from '../api/client';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function Predict() {
+  const { currency, toggleCurrency, isINR, rate = 83.0, costFactor = 1.0, factor = 1.0, formatDirect, formatInrLakhCrore } = useCurrency();
+  const activeRate = Number(rate || 83.0);
+  const activeFactor = Number(costFactor || factor || 1.0);
+
   // Form State
   const [formData, setFormData] = useState({
     age: 30,
@@ -30,10 +34,6 @@ export default function Predict() {
   const [bmiMode, setBmiMode] = useState('direct'); // 'direct' or 'compute'
   const [heightCm, setHeightCm] = useState(175);
   const [weightKg, setWeightKg] = useState(75);
-
-  // Currency toggle: USD vs INR (Assumed Exchange Rate: 1 USD = 83.00 INR)
-  const [currency, setCurrency] = useState('USD');
-  const USD_TO_INR_RATE = 83.0;
 
   // Inference state
   const [loading, setLoading] = useState(false);
@@ -71,15 +71,6 @@ export default function Predict() {
     }
   };
 
-  const formatCost = (valInUsd) => {
-    if (valInUsd === undefined || valInUsd === null) return '$0';
-    if (currency === 'INR') {
-      const inr = valInUsd * USD_TO_INR_RATE;
-      return `₹${inr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-    }
-    return `$${valInUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   const getBmiCategory = (bmi) => {
     if (bmi < 18.5) return { label: 'Underweight', color: 'text-amber-500' };
     if (bmi <= 24.9) return { label: 'Normal weight', color: 'text-emerald-500' };
@@ -88,6 +79,21 @@ export default function Predict() {
   };
 
   const bmiCat = getBmiCategory(formData.bmi);
+
+  // Helper to format values in the chosen currency
+  const renderCost = (usdVal, inrVal, showShort = true) => {
+    if (usdVal === undefined || usdVal === null) return '—';
+    if (isINR) {
+      const formatted = formatDirect(inrVal, { decimals: 0 });
+      const short = showShort ? formatInrLakhCrore(inrVal) : null;
+      return (
+        <span>
+          {formatted} {short && <span className="text-sm font-semibold opacity-80">({short})</span>}
+        </span>
+      );
+    }
+    return formatDirect(usdVal, { decimals: 2 });
+  };
 
   return (
     <div className="space-y-8">
@@ -98,49 +104,52 @@ export default function Predict() {
             Medical Insurance Cost Estimator
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Generate calibrated annual healthcare expense projections using our tuned Gradient Boosting model.
+            Multiple Linear Regression model with configurable India INR cost translation layer.
           </p>
         </div>
 
         {/* Currency Switcher */}
         <div className="flex items-center self-start md:self-auto gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-xl shadow-sm">
-          <span className="text-xs font-semibold px-2 text-slate-500 dark:text-slate-400">Currency:</span>
+          <span className="text-xs font-semibold px-2 text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <Coins className="w-3.5 h-3.5 text-teal-500" /> Currency:
+          </span>
           <button
             type="button"
-            onClick={() => setCurrency('USD')}
+            onClick={() => !isINR && toggleCurrency()}
             className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-              currency === 'USD'
+              isINR
                 ? 'bg-teal-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            USD ($)
+            ₹ INR (Default)
           </button>
           <button
             type="button"
-            onClick={() => setCurrency('INR')}
+            onClick={() => isINR && toggleCurrency()}
             className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-              currency === 'INR'
+              !isINR
                 ? 'bg-teal-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            INR (₹)
+            $ USD
           </button>
         </div>
       </div>
 
-      {currency === 'INR' && (
-        <div className="text-xs text-slate-500 dark:text-slate-400 bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/40 p-2.5 rounded-xl flex items-center gap-2">
-          <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
-          <span>Assumed exchange rate: <strong>1 USD = ₹{USD_TO_INR_RATE} INR</strong> for conversion illustration.</span>
-        </div>
-      )}
+      {/* Mandatory Top Disclaimer */}
+      <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 shadow-xs">
+        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          <strong>Academic Disclaimer:</strong> Model trained on US data. Amounts are India-adjusted estimates, not real insurance quotes.
+        </p>
+      </div>
 
       {/* Main Grid: Form on Left, Output on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Form Column */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 space-y-6">
           <Card title="Beneficiary Information Form" subtitle="Enter demographic and biometric parameters">
             <form onSubmit={handleSubmit} className="space-y-6 pt-2">
               {/* Age Slider */}
@@ -188,9 +197,11 @@ export default function Predict() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="region" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    US Geographic Region
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="region" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      US dataset region
+                    </label>
+                  </div>
                   <select
                     id="region"
                     value={formData.region}
@@ -202,6 +213,9 @@ export default function Predict() {
                     <option value="southeast">Southeast</option>
                     <option value="southwest">Southwest</option>
                   </select>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">
+                    Note: Indian cities are not in the US training dataset.
+                  </p>
                 </div>
               </div>
 
@@ -330,11 +344,11 @@ export default function Predict() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-slate-900 dark:text-white">Active Smoker Status</span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
-                      Primary Cost Factor
+                      Primary Regression Driver
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Tobacco consumption accounts for the highest predictive weight
+                    Smoker × BMI interaction triggers strongest coefficient in the Linear model
                   </p>
                 </div>
 
@@ -373,12 +387,12 @@ export default function Predict() {
                 {loading ? (
                   <>
                     <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Computing Actuarial Estimate...</span>
+                    <span>Evaluating Linear Regression Model...</span>
                   </>
                 ) : (
                   <>
                     <Calculator className="w-5 h-5" />
-                    <span>Calculate Insurance Estimate</span>
+                    <span>Calculate Insurance Estimate ({currency})</span>
                   </>
                 )}
               </button>
@@ -392,7 +406,7 @@ export default function Predict() {
           </Card>
         </div>
 
-        {/* Prediction Results Column */}
+        {/* Prediction Results & Explanation Column */}
         <div className="lg:col-span-5 space-y-6">
           <AnimatePresence mode="wait">
             {result ? (
@@ -428,11 +442,21 @@ export default function Predict() {
                     {/* Primary Number */}
                     <div>
                       <div className="text-3xl sm:text-4xl font-extrabold text-teal-600 dark:text-teal-400 tracking-tight">
-                        {formatCost(result.predicted_cost)}
+                        {renderCost(result.predicted_usd, result.estimated_inr)}
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Monthly estimated equivalent: ~{formatCost(result.monthly_equivalent)}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-block text-[11px] font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
+                          Estimated, India-adjusted
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          (~{renderCost(result.monthly_equivalent_usd, result.monthly_equivalent_inr, false)}/mo)
+                        </span>
+                      </div>
+                      {isINR && (
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                          Base USD Prediction: ${result.predicted_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
                     </div>
 
                     {/* Comparison vs Peer Cohort */}
@@ -441,7 +465,13 @@ export default function Predict() {
                         <span className="flex items-center gap-1.5">
                           <Users className="w-4 h-4 text-teal-500" /> Peer Cohort (Age ±5 yrs, {formData.smoker} smoker)
                         </span>
-                        <span>{formatCost(result.average_cost_for_similar_profiles)}</span>
+                        <span>
+                          {renderCost(
+                            result.average_cost_for_similar_profiles_usd,
+                            result.average_cost_for_similar_profiles_inr,
+                            false
+                          )}
+                        </span>
                       </div>
 
                       {/* Visual Comparison Bar */}
@@ -449,14 +479,14 @@ export default function Predict() {
                         <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden flex">
                           <div
                             className={`h-full ${
-                              result.cohort_difference > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                              result.cohort_difference_usd > 0 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`}
                             style={{
                               width: `${Math.min(
                                 100,
                                 Math.max(
                                   15,
-                                  (result.predicted_cost / (result.average_cost_for_similar_profiles * 1.5 || 1)) * 100
+                                  (result.predicted_usd / (result.average_cost_for_similar_profiles_usd * 1.5 || 1)) * 100
                                 )
                               )}%`,
                             }}
@@ -464,17 +494,24 @@ export default function Predict() {
                         </div>
                         <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
                           <span>
-                            {result.cohort_difference > 0 ? '▲' : '▼'}{' '}
-                            {formatCost(Math.abs(result.cohort_difference))} vs peer average
+                            {result.cohort_difference_usd > 0 ? '▲' : '▼'}{' '}
+                            {renderCost(
+                              Math.abs(result.cohort_difference_usd),
+                              Math.abs(result.cohort_difference_inr),
+                              false
+                            )}{' '}
+                            vs peer cohort average
                           </span>
-                          <span>Dataset Avg: {formatCost(result.overall_dataset_average)}</span>
+                          <span>
+                            Dataset Avg: {renderCost(result.overall_dataset_average_usd, result.overall_dataset_average_inr, false)}
+                          </span>
                         </div>
                       </div>
                     </div>
 
                     {/* Plain-English Explanation */}
                     <div className="p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-900/40 rounded-xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                      <strong>Actuarial Rationale:</strong> {result.explanation}
+                      <strong>Linear Regression Rationale:</strong> {result.explanation}
                     </div>
                   </div>
                 </Card>
@@ -488,19 +525,39 @@ export default function Predict() {
                   Ready to Calculate
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                  Adjust the form parameters on the left and submit to receive a customized annual premium projection.
+                  Adjust the parameters on the left and submit to receive a Linear Regression cost projection in {currency}.
                 </p>
               </Card>
             )}
           </AnimatePresence>
 
-          {/* Legal / Underwriting Disclaimer */}
-          <div className="p-4 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl flex items-start gap-3 text-xs text-amber-800 dark:text-amber-300">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
-            <p>
-              <strong>Disclaimer:</strong> Predictions generated by this model are statistical estimates derived from historical insurance data for academic demonstration purposes only. They do not constitute real underwriting quotes or clinical advice.
-            </p>
-          </div>
+          {/* "How this is calculated" Card */}
+          <Card title="How this is calculated" subtitle="India conversion & actuarial adjustment formula">
+            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+              <div className="p-3 bg-slate-100 dark:bg-slate-800/70 rounded-xl font-mono text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-slate-700">
+                estimated_inr = predicted_usd × USD_TO_INR_RATE × INDIA_COST_FACTOR
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-750">
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">USD to INR Rate</span>
+                  <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+                    ₹{activeRate.toFixed(1)} / $1 USD
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-750">
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">India Cost Factor</span>
+                  <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+                    {activeFactor.toFixed(2)} (Configurable)
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                The machine learning pipeline remains trained on original US insurance data (Ordinary Least Squares). This transparent conversion layer enables real-time Indian rupee estimates without corrupting the underlying empirical weights.
+              </p>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

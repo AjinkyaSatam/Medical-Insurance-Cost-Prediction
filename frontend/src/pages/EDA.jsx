@@ -12,16 +12,18 @@ import {
   CartesianGrid,
   Cell
 } from 'recharts';
-import { Filter, BarChart3, RefreshCw, Info } from 'lucide-react';
+import { Filter, BarChart3, RefreshCw, Info, Coins, AlertTriangle } from 'lucide-react';
 import Card from '../components/Card';
 import { SkeletonChart } from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import { api } from '../api/client';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function EDA() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { currency, isINR, toggleCurrency, formatDirect, formatInrLakhCrore } = useCurrency();
 
   // Filters State
   const [selectedRegions, setSelectedRegions] = useState(['northeast', 'northwest', 'southeast', 'southwest']);
@@ -72,29 +74,87 @@ export default function EDA() {
   };
 
   // Helper formatters
-  const formatDollar = (val) => `$${Number(val).toLocaleString()}`;
+  const formatCost = (val) => {
+    if (val === null || val === undefined) return '—';
+    if (isINR) {
+      const inr = Number(val);
+      return inr >= 100000 ? `₹${(inr / 100000).toFixed(1)}L` : `₹${(inr / 1000).toFixed(0)}k`;
+    }
+    return `$${(Number(val) / 1000).toFixed(0)}k`;
+  };
+
+  const formatTooltipCost = (val) => {
+    if (val === null || val === undefined) return '—';
+    if (isINR) {
+      return `₹${Number(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${formatInrLakhCrore(val)})`;
+    }
+    return `$${Number(val).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-          Exploratory Data Analysis (EDA)
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Explore bivariate distributions, lifestyle risk disparities, and correlation structures across policyholders.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
+            Exploratory Data Analysis (EDA)
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Explore distributions, demographic risk disparities, and correlation patterns ({currency} view).
+          </p>
+        </div>
+
+        {/* Currency Switcher */}
+        <div className="flex items-center self-start md:self-auto gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-xl shadow-sm">
+          <span className="text-xs font-semibold px-2 text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <Coins className="w-3.5 h-3.5 text-teal-500" /> Currency:
+          </span>
+          <button
+            type="button"
+            onClick={() => !isINR && toggleCurrency()}
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              isINR
+                ? 'bg-teal-500 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            ₹ INR (Default)
+          </button>
+          <button
+            type="button"
+            onClick={() => isINR && toggleCurrency()}
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              !isINR
+                ? 'bg-teal-500 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            $ USD
+          </button>
+        </div>
       </div>
+
+      {isINR && (
+        <div className="p-3 bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/40 rounded-xl flex items-center gap-2 text-xs text-teal-800 dark:text-teal-200">
+          <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
+          <span>All charges below are displayed as <strong>Estimated, India-adjusted</strong> amounts (Rate: ₹83.0 / $1 USD).</span>
+        </div>
+      )}
 
       {/* Slicers & Filters Panel */}
       <Card title="Interactive Data Slicers" subtitle="Filter data points dynamically across all visualizations">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
           {/* Region filter */}
           <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">
-              Regions Included
-            </span>
-            <div className="flex flex-wrap gap-2">
+            <div>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">
+                US Dataset Region
+              </span>
+              <p className="text-[10px] text-slate-400 italic">
+                (Note: Indian cities are not in the US dataset)
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
               {['northeast', 'northwest', 'southeast', 'southwest'].map((r) => {
                 const active = selectedRegions.includes(r);
                 return (
@@ -119,7 +179,7 @@ export default function EDA() {
             <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">
               Smoking Status
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               {[
                 { val: 'no', label: 'Non-Smokers' },
                 { val: 'yes', label: 'Active Smokers' },
@@ -150,7 +210,7 @@ export default function EDA() {
               <span className="uppercase tracking-wider">Age Range Filter</span>
               <span className="text-teal-600 dark:text-teal-400">{ageRange[0]} - {ageRange[1]} yrs</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-1">
               <input
                 type="range"
                 min="18"
@@ -178,14 +238,18 @@ export default function EDA() {
         <div className="space-y-8">
           {/* Chart 1: Charges Distribution */}
           <Card
-            title="Distribution of Annual Medical Charges"
-            subtitle="Histogram of policyholder costs stratified by tobacco smoking status"
+            title={`Distribution of Medical Charges (${currency})`}
+            subtitle={`Histogram bins stratified by tobacco smoking status (${isINR ? 'Estimated, India-adjusted' : 'USD'})`}
           >
             <div className="h-72 w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.charges_distribution || []}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="bin_label" tick={{ fontSize: 10 }} interval={3} />
+                  <XAxis
+                    dataKey={isINR ? 'bin_label_inr' : 'bin_label_usd'}
+                    tick={{ fontSize: 10 }}
+                    interval={3}
+                  />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip
                     contentStyle={{
@@ -206,15 +270,15 @@ export default function EDA() {
             <div className="mt-4 p-3 bg-teal-50/70 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/30 rounded-xl text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
               <span>
-                <strong>Plain-English Insight:</strong> The raw medical charges distribution has extreme positive skewness. Non-smokers cluster densely under $10,000, while smokers produce a secondary peak extending from $30,000 to over $60,000.
+                <strong>Distribution Insight:</strong> Medical charges show pronounced right-skewness. Non-smokers cluster densely under {isINR ? '₹8.3 Lakh ($10,000)' : '$10,000'}, whereas smokers produce an extended high-cost tail beyond {isINR ? '₹25 Lakh ($30,000)' : '$30,000'}.
               </span>
             </div>
           </Card>
 
           {/* Chart 2: Category Breakdown */}
           <Card
-            title="Average & Median Charges by Demographic Group"
-            subtitle="Compare medical costs across different attributes"
+            title={`Average & Median Charges by Demographic Group (${currency})`}
+            subtitle="Compare medical costs across different attributes (Estimated, India-adjusted)"
             action={
               <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                 {['smoker', 'sex', 'region', 'children'].map((tab) => (
@@ -238,7 +302,7 @@ export default function EDA() {
                 <BarChart data={data?.averages_by_category?.[activeCategoryTab] || []}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={formatDollar} tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={formatCost} tick={{ fontSize: 11 }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
@@ -247,18 +311,31 @@ export default function EDA() {
                       color: '#f8fafc',
                       fontSize: '12px',
                     }}
-                    formatter={(val) => [`$${Number(val).toLocaleString()}`, 'Amount']}
+                    formatter={(val, name) => [
+                      formatTooltipCost(val),
+                      name === 'average_inr' || name === 'average_usd' ? 'Mean Cost' : 'Median Cost'
+                    ]}
                   />
                   <Legend />
-                  <Bar dataKey="average" fill="#3b82f6" name="Mean Cost ($)" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="median" fill="#14b8a6" name="Median Cost ($)" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey={isINR ? 'average_inr' : 'average_usd'}
+                    fill="#3b82f6"
+                    name={`Mean Cost (${currency})`}
+                    radius={[6, 6, 0, 0]}
+                  />
+                  <Bar
+                    dataKey={isINR ? 'median_inr' : 'median_usd'}
+                    fill="#14b8a6"
+                    name={`Median Cost (${currency})`}
+                    radius={[6, 6, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-4 p-3 bg-teal-50/70 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/30 rounded-xl text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <Info className="w-4 h-4 text-teal-600 flex-shrink-0" />
               <span>
-                <strong>Plain-English Insight:</strong> Smoking creates an ~3.8x disparity in mean cost (~$32,050 vs ~$8,434), whereas gender and regional medians remain comparable across cohorts.
+                <strong>Demographic Disparity:</strong> Smoking creates an ~3.8x disparity in mean cost ({isINR ? '₹26.6 Lakh vs ₹7.0 Lakh' : '$32,050 vs $8,434'}), whereas biological sex and dataset region have virtually uniform distributions.
               </span>
             </div>
           </Card>
@@ -266,7 +343,7 @@ export default function EDA() {
           {/* Scatter Plots Row: Age & BMI vs Charges */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Age vs Cost */}
-            <Card title="Age vs Charges (Biological Aging Trajectory)">
+            <Card title={`Age vs Charges (${currency})`} subtitle="Biological aging trajectory (Estimated, India-adjusted)">
               <div className="h-72 w-full mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
@@ -281,9 +358,9 @@ export default function EDA() {
                     />
                     <YAxis
                       type="number"
-                      dataKey="cost"
+                      dataKey={isINR ? "cost_inr" : "cost_usd"}
                       name="Cost"
-                      tickFormatter={formatDollar}
+                      tickFormatter={formatCost}
                       tick={{ fontSize: 11 }}
                     />
                     <Tooltip
@@ -295,7 +372,10 @@ export default function EDA() {
                         color: '#f8fafc',
                         fontSize: '12px',
                       }}
-                      formatter={(val, name) => [name === 'Cost' ? `$${Number(val).toLocaleString()}` : val, name]}
+                      formatter={(val, name) => [
+                        name === 'cost_inr' || name === 'cost_usd' ? formatTooltipCost(val) : val,
+                        name === 'cost_inr' || name === 'cost_usd' ? 'Cost' : name
+                      ]}
                     />
                     <Scatter
                       name="Beneficiaries"
@@ -311,12 +391,12 @@ export default function EDA() {
                 </ResponsiveContainer>
               </div>
               <div className="mt-3 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-600 dark:text-slate-400">
-                💡 <strong>Insight:</strong> Medical charges increase linearly with age for both groups (~$260/year), but smokers begin from a heavily elevated base intercept.
+                💡 <strong>Linearity:</strong> Cost increases linearly with age for both cohorts, consistent with the linear regression formulation.
               </div>
             </Card>
 
             {/* BMI vs Cost */}
-            <Card title="BMI vs Charges (Obesity Threshold Step-Function)">
+            <Card title={`BMI vs Charges (${currency})`} subtitle="Obesity interaction threshold (Estimated, India-adjusted)">
               <div className="h-72 w-full mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
@@ -331,9 +411,9 @@ export default function EDA() {
                     />
                     <YAxis
                       type="number"
-                      dataKey="cost"
+                      dataKey={isINR ? "cost_inr" : "cost_usd"}
                       name="Cost"
-                      tickFormatter={formatDollar}
+                      tickFormatter={formatCost}
                       tick={{ fontSize: 11 }}
                     />
                     <Tooltip
@@ -345,7 +425,10 @@ export default function EDA() {
                         color: '#f8fafc',
                         fontSize: '12px',
                       }}
-                      formatter={(val, name) => [name === 'Cost' ? `$${Number(val).toLocaleString()}` : val, name]}
+                      formatter={(val, name) => [
+                        name === 'cost_inr' || name === 'cost_usd' ? formatTooltipCost(val) : val,
+                        name === 'cost_inr' || name === 'cost_usd' ? 'Cost' : name
+                      ]}
                     />
                     <Scatter
                       name="Beneficiaries"
@@ -361,13 +444,13 @@ export default function EDA() {
                 </ResponsiveContainer>
               </div>
               <div className="mt-3 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs text-slate-600 dark:text-slate-400">
-                💡 <strong>Insight:</strong> Crossing BMI = 30 produces an abrupt jump for smokers into the $35,000–$50,000 bracket, confirming the non-linear interaction effect.
+                💡 <strong>Interaction Step:</strong> Smokers crossing BMI 30 jump into the {isINR ? '₹29 Lakh - ₹42 Lakh' : '$35,000 - $50,000'} range, justifying the <code>smoker_x_bmi</code> interaction term.
               </div>
             </Card>
           </div>
 
           {/* Correlation Heatmap Table */}
-          <Card title="Pearson Correlation Matrix Heatmap" subtitle="Pairwise statistical correlation between variables">
+          <Card title="Pearson Correlation Matrix Heatmap" subtitle="Pairwise statistical correlation between numeric variables (unitless)">
             <div className="overflow-x-auto mt-4">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
@@ -414,7 +497,7 @@ export default function EDA() {
               </table>
             </div>
             <div className="mt-4 p-3 bg-teal-50/70 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/30 rounded-xl text-xs text-slate-700 dark:text-slate-300">
-              💡 <strong>Insight:</strong> Smoking shows the highest linear correlation with charges (r = 0.787), followed by age (r = 0.299) and BMI (r = 0.198).
+              💡 <strong>Linear Correlation:</strong> Smoking status exhibits the strongest linear correlation with charges (r = 0.787), followed by chronological age (r = 0.299).
             </div>
           </Card>
         </div>

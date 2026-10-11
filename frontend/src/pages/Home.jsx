@@ -10,19 +10,22 @@ import {
   CheckCircle2,
   Cpu,
   TrendingUp,
-  FileText
+  FileText,
+  Coins
 } from 'lucide-react';
 import Card from '../components/Card';
 import MetricCard from '../components/MetricCard';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import { api } from '../api/client';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function Home() {
   const [metrics, setMetrics] = useState(null);
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { currency, isINR, toggleCurrency, formatDirect, formatInrLakhCrore } = useCurrency();
 
   useEffect(() => {
     loadData();
@@ -54,16 +57,17 @@ export default function Home() {
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-200 text-xs font-semibold uppercase tracking-wider backdrop-blur-sm">
             <Cpu className="w-3.5 h-3.5 text-teal-300" />
-            Machine Learning • Actuarial Forecasting
+            Machine Learning • Multiple Linear Regression • INR Conversion Layer
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-            Predict Individual Healthcare Costs with Precision ML
+            Predict Individual Healthcare Costs with Linear Regression
           </h1>
 
           <p className="text-teal-100/90 text-sm sm:text-base leading-relaxed">
-            An end-to-end medical insurance expenditure predictor powered by an audited Scikit-Learn
-            Gradient Boosting ensemble. Discover risk factors, explore cohort benchmarks, and analyze actuarial insights.
+            An end-to-end medical insurance cost prediction system powered exclusively by
+            Scikit-Learn Linear Regression with an India-based INR currency conversion layer.
+            Understand regression coefficients, explore cohort benchmarks, and inspect cross-validation metrics.
           </p>
 
           <div className="flex flex-wrap gap-3 pt-2">
@@ -71,7 +75,7 @@ export default function Home() {
               to="/predict"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-teal-900 hover:bg-teal-50 font-semibold rounded-xl text-sm transition shadow-sm"
             >
-              <Calculator className="w-4 h-4 text-teal-600" /> Calculate Estimate
+              <Calculator className="w-4 h-4 text-teal-600" /> Calculate Estimate ({currency})
             </Link>
             <Link
               to="/eda"
@@ -107,24 +111,28 @@ export default function Home() {
             color="teal"
           />
           <MetricCard
-            title="Final Model"
-            value={metrics?.final_model?.replace(' Regressor', '') || 'Gradient Boosting'}
-            subtitle="Cross-Validation Selected"
+            title="Algorithm"
+            value="Linear Regression"
+            subtitle="Ordinary Least Squares (OLS)"
             icon={Award}
             color="indigo"
           />
           <MetricCard
             title="Test R² Score"
-            value={`${((finalMetrics.test_r2 || 0.9188) * 100).toFixed(2)}%`}
-            subtitle="Variance Explained"
+            value={`${((finalMetrics.test_r2 || 0.8983) * 100).toFixed(2)}%`}
+            subtitle="Hold-out Variance Explained"
             icon={TrendingUp}
             color="emerald"
             badge="Hold-out Test"
           />
           <MetricCard
-            title="Mean Absolute Error"
-            value={`$${(finalMetrics.test_mae || 2123.89).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-            subtitle="Average Prediction Error"
+            title="Test MAE"
+            value={
+              isINR
+                ? formatDirect(finalMetrics.test_mae_inr || finalMetrics.test_mae * 83.0, { decimals: 0 })
+                : formatDirect(finalMetrics.test_mae || 2474.76, { decimals: 0 })
+            }
+            subtitle={isINR ? "Estimated, India-adjusted" : "Average Error (USD)"}
             icon={Calculator}
             color="amber"
           />
@@ -136,7 +144,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Platform Modules</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Navigate through the core modules of this ML project</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Navigate through the core modules of this Linear Regression project</p>
           </div>
         </div>
 
@@ -150,10 +158,10 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-teal-500 group-hover:translate-x-1 transition-all" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                Interactive Cost Estimator
+                Interactive Cost Estimator (INR Default)
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Input personal demographics, biometric indicators, and lifestyle factors to receive real-time cost predictions with risk stratification and peer cohort comparisons.
+                Input personal demographics, biometric indicators, and lifestyle factors to receive real-time cost predictions in Indian Rupees (INR) with peer cohort benchmarks and risk stratification.
               </p>
               <div className="flex items-center gap-2 text-xs font-medium text-teal-600 dark:text-teal-400">
                 <span>Try the prediction tool</span>
@@ -174,7 +182,7 @@ export default function Home() {
                 Exploratory Data Analysis
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Interactive charts exploring cost distributions, categorical breakdowns by smoker and region, BMI vs Age non-linearities, and Pearson correlation matrices.
+                Interactive charts exploring cost distributions, categorical breakdowns by smoker and region, BMI vs Age non-linearities, and Pearson correlation matrices with INR & USD views.
               </p>
               <div className="flex items-center gap-2 text-xs font-medium text-blue-600 dark:text-blue-400">
                 <span>View interactive charts</span>
@@ -192,13 +200,13 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                Model Performance & Benchmarking
+                Model Performance & Baseline Lift
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Transparent evaluation comparing Linear Regression, Random Forest, Gradient Boosting, and XGBoost across raw and log1p targets with diagnostic residual plots.
+                Evaluation comparing Linear Regression against the Mean Baseline, showing Train vs Test vs 5-fold CV R², MAE, RMSE, and homoscedasticity residual plots.
               </p>
               <div className="flex items-center gap-2 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                <span>Inspect model leaderboard</span>
+                <span>Inspect model metrics</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </div>
             </Card>
@@ -213,13 +221,13 @@ export default function Home() {
                 <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                Actuarial Insights
+                Coefficients & Actuarial Insights
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                Feature importance rankings and plain-English takeaways illustrating the compounding impact of smoking, clinical obesity, and chronological aging on health expenditure.
+                Ranked regression coefficients (β weights) with plain-English cards explaining the impact of smoking, clinical obesity, and chronological aging on health expenditure.
               </p>
               <div className="flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-                <span>Read actuarial findings</span>
+                <span>Read coefficient findings</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </div>
             </Card>
@@ -235,9 +243,9 @@ export default function Home() {
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Leak-Free Pipeline</h4>
+              <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Strict Linear Regression</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Scikit-Learn ColumnTransformer and FeatureEngineer fitted strictly on 80% training splits.
+                Conforms strictly to the college academic syllabus focusing on parametric linear models.
               </p>
             </div>
           </div>
@@ -249,7 +257,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Stratified 5-Fold CV</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Tuned with RandomizedSearchCV, maintaining exact ~20.5% smoker representation across all folds.
+                Validated using 5-Fold cross-validation on 80% train split (82.59% CV R²), preserving ~20.5% smoker representation.
               </p>
             </div>
           </div>
@@ -259,9 +267,9 @@ export default function Home() {
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Clinical Outlier Retention</h4>
+              <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Configurable INR Layer</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                139 target outliers ($34,500+) retained as genuine clinical risk signals (97.8% are smokers).
+                Transparently converts US insurance predictions to Indian Rupees without altering underlying training weights.
               </p>
             </div>
           </div>
