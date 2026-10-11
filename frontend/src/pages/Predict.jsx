@@ -277,12 +277,24 @@ export default function Predict() {
                 </div>
 
                 {/* Direct BMI Slider & Input */}
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs font-medium">
                     <span className="text-slate-600 dark:text-slate-400">Current BMI:</span>
-                    <span className="text-teal-600 dark:text-teal-400 font-extrabold text-sm">
-                      {formData.bmi} kg/m²
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="15.0"
+                        max="55.0"
+                        step="0.1"
+                        value={formData.bmi}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          if (!isNaN(val)) setFormData({ ...formData, bmi: val });
+                        }}
+                        className="w-16 px-2 py-0.5 text-right font-extrabold text-teal-600 dark:text-teal-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs outline-none focus:ring-1 focus:ring-teal-500"
+                      />
+                      <span className="text-xs text-slate-500 font-medium">kg/m²</span>
+                    </div>
                   </div>
                   <input
                     type="range"
@@ -293,11 +305,28 @@ export default function Predict() {
                     onChange={(e) => setFormData({ ...formData, bmi: Number(e.target.value) })}
                     className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>15 (Underweight)</span>
-                    <span>25 (Normal)</span>
-                    <span>30 (Obese)</span>
+                  {/* Mathematically equidistant ticks across 15 to 55 (every 10 units = 25% width) */}
+                  <div className="flex justify-between text-[11px] text-slate-400 font-medium px-0.5">
+                    <span>15</span>
+                    <span>25</span>
+                    <span>35</span>
+                    <span>45</span>
                     <span>55</span>
+                  </div>
+                  {/* Dynamic Category Indicator */}
+                  <div className="grid grid-cols-4 gap-1.5 pt-1 text-[10px] text-center font-medium">
+                    <div className={`py-1 px-1 rounded-md transition ${formData.bmi < 18.5 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold ring-1 ring-amber-400' : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}`}>
+                      &lt;18.5 Underweight
+                    </div>
+                    <div className={`py-1 px-1 rounded-md transition ${formData.bmi >= 18.5 && formData.bmi <= 24.9 ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold ring-1 ring-emerald-400' : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}`}>
+                      18.5–24.9 Normal
+                    </div>
+                    <div className={`py-1 px-1 rounded-md transition ${formData.bmi >= 25.0 && formData.bmi <= 29.9 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold ring-1 ring-amber-400' : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}`}>
+                      25–29.9 Overweight
+                    </div>
+                    <div className={`py-1 px-1 rounded-md transition ${formData.bmi >= 30.0 ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold ring-1 ring-rose-400' : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'}`}>
+                      ≥30 Obese
+                    </div>
                   </div>
                 </div>
 
