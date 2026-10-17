@@ -24,3 +24,7 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Documentation excluded from remote
+REPORT.md
+VIVA_NOTES.md
